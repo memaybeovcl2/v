@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Log Terminal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #000;
+            color: #00ff00;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .terminal {
+            width: 100%;
+            height: 100vh;
+            padding: 20px;
+            background-color: #000;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .terminal-header {
+            background: linear-gradient(90deg, #003300, #001100);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #00ff00;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 255, 0, 0.3);
+        }
+        
+        .header-title h1 {
+            font-size: 1.8em;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        .header-title p {
+            color: #00ffff;
+            font-size: 0.9em;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            background-color: #003300;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 8px 15px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 3px;
+        }
+        
+        .btn:hover {
+            background-color: #00ff00;
+            color: #000;
+            transform: translateY(-1px);
+        }
+        
+        .prompt {
+            color: #00ff00;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .command-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            background-color: #001100;
+            padding: 8px;
+            border-radius: 3px;
+            border-left: 3px solid #00ff00;
+        }
+        
+        .input-line {
+            background: transparent;
+            border: none;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            outline: none;
+            flex-grow: 1;
+        }
+        
+        .log-entry {
+            margin: 8px 0;
+            padding: 10px;
+            border-left: 3px solid #003300;
+            background-color: rgba(0, 51, 0, 0.1);
+            animation: slideIn 0.5s ease-out;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .log-entry:hover {
+            background-color: rgba(0, 51, 0, 0.3);
+            border-left-color: #00ff00;
+            transform: translateX(5px);
+        }
+        
+        .ip-highlight {
+            color: #ffff00;
+            font-weight: bold;
+            text-shadow: 0 0 5px #ffff00;
+        }
+        
+        .timestamp {
+            color: #00ffff;
+            font-size: 0.9em;
+        }
+        
+        .user-agent {
+            color: #ff00ff;
+            font-size: 0.85em;
+        }
+        
+        .location {
+            color: #00ff88;
+        }
+        
+        .system-message {
+            color: #ffff00;
+            font-style: italic;
+            margin: 10px 0;
+            padding: 8px;
+            background-color: rgba(255, 255, 0, 0.1);
+            border-radius: 3px;
+        }
+        
+        .error-message {
+            color: #ff0000;
+            background-color: rgba(255, 0, 0, 0.1);
+            padding: 8px;
+            border-radius: 3px;
+            margin: 5px 0;
+        }
+        
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        @keyframes slideIn {
+            from { 
+                opacity: 0; 
+                transform: translateX(-20px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateX(0); 
+            }
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #001100;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #003300;
+            border-radius: 6px;
+            border: 2px solid #001100;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ff00;
+        }
+        
+        .log-count {
+            background-color: #003300;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <div class="terminal-header">
+            <div class="header-title">
+                <h1>🖥️ IP LOG TERMINAL</h1>
+                <p>Real-time IP Connection Monitor</p>
+            </div>
+            <div class="controls">
+                <div class="log-count">
+                    Logs: <span id="logCount">0</span>
+                </div>
+                <button onclick="refreshLogs()" class="btn">🔄 Refresh</button>
+                <button onclick="clearLogs()" class="btn">🗑️ Clear</button>
+                <button onclick="exportLogs()" class="btn">📥 Export</button>
+            </div>
+        </div>
+        
+        <div id="systemMessage" class="system-message">
+            > System initialized. Loading connection logs...
+        </div>
+        
+        <div class="command-line">
+            <span class="prompt">root@ip-logger:~$</span>
+            <input type="text" class="input-line" value="tail -f ip_logs.json" readonly>
+            <span class="blink">_</span>
+        </div>
+        
+        <div id="logsContainer">
+            <!-- Logs will be displayed here -->
+        </div>
+        
+        <div class="command-line">
+            <span class="prompt">root@ip-logger:~$</span>
+            <input type="text" class="input-line" placeholder="Type 'help' for commands..." id="liveInput">
+            <span class="blink">_</span>
+        </div>
+    </div>
+
+    <script>
+        let logs = [];
+        
+        function loadLogs() {
+            const savedLogs = localStorage.getItem('ipLogs');
+            logs = savedLogs ? JSON.parse(savedLogs) : [];
+            displayLogs();
+        }
+        
+        function displayLogs() {
+            const container = document.getElementById('logsContainer');
+            const systemMessage = document.getElementById('systemMessage');
+            const logCount = document.getElementById('logCount');
+            
+            logCount.textContent = logs.length;
+            
+            if (logs.length === 0) {
+                systemMessage.innerHTML = '> No connection logs found. Visit the <a href="log_ip.html" style="color: #00ff00;">IP Logger</a> page first.';
+                container.innerHTML = '';
+                return;
+            }
+            
+            systemMessage.innerHTML = `> Displaying ${logs.length} log entries. System time: ${new Date().toLocaleString()}`;
+            
+            container.innerHTML = '';
+            
+            logs.forEach((log, index) => {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.innerHTML = `
+                    <div>
+                        <span class="timestamp">[${log.timestamp}]</span> | 
+                        <span class="ip-highlight">IP: ${log.ip}</span> | 
+                        <span class="location">${log.city}, ${log.country}</span>
+                    </div>
+                    <div style="margin-top: 5px;">
+                        <span class="user-agent">${log.browser} on ${log.platform}</span> |
+                        <span style="color: #888;">ISP: ${log.isp}</span>
+                    </div>
+                    <div style="margin-top: 3px; font-size: 0.8em; color: #666;">
+                        User Agent: ${log.userAgent.substring(0, 80)}${log.userAgent.length > 80 ? '...' : ''}
+                    </div>
+                `;
+                container.appendChild(logEntry);
+            });
+            
+            // Auto-scroll to bottom
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+        
+        function refreshLogs() {
+            const systemMessage = document.getElementById('systemMessage');
+            systemMessage.innerHTML = `> Refreshing logs... ${new Date().toLocaleTimeString()}`;
+            loadLogs();
+        }
+        
+        function clearLogs() {
+            if (confirm('Are you sure you want to clear all logs?')) {
+                localStorage.removeItem('ipLogs');
+                localStorage.removeItem('lastLog');
+                logs = [];
+                displayLogs();
+                
+                const systemMessage = document.getElementById('systemMessage');
+                systemMessage.innerHTML = '> All logs have been cleared.';
+            }
+        }
+        
+        function exportLogs() {
+            if (logs.length === 0) {
+                alert('No logs to export!');
+                return;
+            }
+            
+            const dataStr = JSON.stringify(logs, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `ip_logs_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            const systemMessage = document.getElementById('systemMessage');
+            systemMessage.innerHTML = `> Exported ${logs.length} logs to JSON file.`;
+        }
+        
+        // Command line simulation
+        document.getElementById('liveInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const command = this.value.toLowerCase().trim();
+                this.value = '';
+                
+                const terminal = document.querySelector('.terminal');
+                const systemMessage = document.getElementById('systemMessage');
+                
+                // Add command to terminal
+                const commandLine = document.createElement('div');
+                commandLine.className = 'command-line';
+                commandLine.innerHTML = `
+                    <span class="prompt">root@ip-logger:~$</span>
+                    <span>${command}</span>
+                `;
+                terminal.insertBefore(commandLine, this.parentElement);
+                
+                // Process command
+                let response = '';
+                
+                switch(command) {
+                    case 'help':
+                        response = `> Available commands: help, clear, refresh, export, status, count, time`;
+                        break;
+                    case 'clear':
+                        clearLogs();
+                        response = `> Logs cleared successfully`;
+                        break;
+                    case 'refresh':
+                        refreshLogs();
+                        response = `> Logs refreshed`;
+                        break;
+                    case 'export':
+                        exportLogs();
+                        response = `> Export initiated`;
+                        break;
+                    case 'status':
+                        response = `> System status: ONLINE | Log entries: ${logs.length} | Last update: ${new Date().toLocaleTimeString()}`;
+                        break;
+                    case 'count':
+                        response = `> Total log entries: ${logs.length}`;
+                        break;
+                    case 'time':
+                        response = `> Current system time: ${new Date().toLocaleString()}`;
+                        break;
+                    case '':
+                        response = '';
+                        break;
+                    default:
+                        response = `> Command not found: "${command}". Type "help" for available commands.`;
+                }
+                
+                if (response) {
+                    const responseDiv = document.createElement('div');
+                    responseDiv.className = command.includes('not found') ? 'error-message' : 'system-message';
+                    responseDiv.innerHTML = response;
+                    terminal.insertBefore(responseDiv, this.parentElement);
+                }
+                
+                window.scrollTo(0, document.body.scrollHeight);
+            }
+        });
+        
+        // Auto-refresh every 10 seconds
+        setInterval(() => {
+            if (logs.length > 0) {
+                refreshLogs();
+            }
+        }, 10000);
+        
+        // Load logs when page loads
+        document.addEventListener('DOMContentLoaded', loadLogs);
+    </script>
+</body>
+</html>
